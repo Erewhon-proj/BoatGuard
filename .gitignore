@@ -1,0 +1,5 @@
+BoatGuard/.pio
+BoatGuard/.vscode/*
+.idea/*
+BoatGuard/src/main.txt
+dati_ormeggio.csv
