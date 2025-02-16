@@ -1,7 +1,3 @@
-Ecco una possibile descrizione per il tuo progetto su GitHub:  
-
----
-
 ## BoatGuard 🚢🔒  
 **An IoT-based security system to detect boat theft via unauthorized towing.**  
 
