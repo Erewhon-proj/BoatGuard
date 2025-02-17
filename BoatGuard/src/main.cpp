@@ -42,8 +42,7 @@ float leggi_solcometro(bool in_movimento) {
 
 void setup() {
     IoTBoard::init_serial();  
-    
-    randomSeed(millis());  // Inizializza la generazione casuale
+    randomSeed(millis()); 
 
     if (!ml.begin(ormeggio_model)) {  
         Serial.println("Errore nell'inizializzazione del modello");
@@ -53,30 +52,51 @@ void setup() {
 }
 
 void loop() {
+    const int NUM_RILEVAZIONI = 10;
+    int count_non_ormeggiata = 0;
 
-    float input[NUMBER_OF_INPUTS];  
-    bool in_movimento = random(0, 2); 
+    Serial.println("10 rilevazioni in corso...");
+    
+    for (int i = 0; i < NUM_RILEVAZIONI; i++) {
+        float input[NUMBER_OF_INPUTS];  
+        bool in_movimento = random(0, 2);  
 
-    // Lettura sensori 
-    leggi_accelerometro(input[0], input[1], input[2], in_movimento);
-    leggi_giroscopio(input[3], input[4], input[5], in_movimento);
-    input[6] = leggi_solcometro(in_movimento);
+        // Lettura sensori
+        leggi_accelerometro(input[0], input[1], input[2], in_movimento);
+        leggi_giroscopio(input[3], input[4], input[5], in_movimento);
+        input[6] = leggi_solcometro(in_movimento);
 
-    // Predizione
-    float output[NUMBER_OF_OUTPUTS];  
-    ml.predict(input, output);  
+        // Predizione
+        float output[NUMBER_OF_OUTPUTS];  
+        ml.predict(input, output);  
 
-    // Interpretazione dell'output
-    bool is_ormeggiata = output[0] < 0.5;
+        // Interpretazione dell'output
+        bool is_ormeggiata = output[0] < 0.5;
+        
+        // Conta quante volte la barca è risultata "non ormeggiata"
+        if (!is_ormeggiata) {
+            count_non_ormeggiata++;
+        }
 
-    // Stampe di controllo
-    Serial.print("Predizione: "); Serial.print(output[0]);
-    Serial.print(" -> ");
-    if (is_ormeggiata) {
-        Serial.println("Barca Ormeggiata");
-    } else {
-        Serial.println("Barca Non Ormeggiata! (Possibile Furto)");
+        // Stampe di controllo
+        Serial.print("Rilevazione "); Serial.print(i + 1);
+        Serial.print(" - Predizione: "); Serial.print(output[0]);
+        Serial.print(" -> ");
+        Serial.println(is_ormeggiata ? "Barca Ormeggiata" : "Barca Non Ormeggiata");
+
+        delay(5000);  // 5 secondi di attesa
     }
 
-    delay(1000);  
+    Serial.print("Conteggio 'Barca Non Ormeggiata': ");
+    Serial.println(count_non_ormeggiata);
+
+    if (count_non_ormeggiata > NUM_RILEVAZIONI / 2) {
+        Serial.println("La Barca NON è ormeggiata");
+    } else {
+        Serial.println("La Barca risulta ormeggiata");
+    }
+
+    // Attesa di 45 minuti
+    Serial.println("Attesa 45 minuti...");
+    delay(45 * 60 * 1000);
 }

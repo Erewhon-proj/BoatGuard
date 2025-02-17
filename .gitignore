@@ -4,3 +4,4 @@ BoatGuard/.vscode/*
 BoatGuard/src/main.txt
 dati_ormeggio.csv
 .DS_Store
+BoatGuard/.gitignore
