@@ -1,102 +1,175 @@
 #include <iot_board.h>
-#include "EloquentTinyML.h"
-#include "ormeggio_etichettati.h"
+#include <BLEDevice.h>
+#include <BLEUtils.h>
+#include <BLEServer.h>
+#include <BLEAdvertisedDevice.h>
+#include <BLEScan.h>
+#include <ArduinoJson.h>
 
-#define NUMBER_OF_INPUTS 7   
-#define NUMBER_OF_OUTPUTS 1  
-#define TENSOR_ARENA_SIZE 2*1024  
+#define SERVICE_UUID "12345678-1234-1234-1234-123456789012"        // Sostituisci con il tuo UUID del servizio
+#define CHARACTERISTIC_UUID "87654321-4321-4321-4321-210987654321" // Sostituisci con il tuo UUID della caratteristica
 
-Eloquent::TinyML::TfLite<NUMBER_OF_INPUTS, NUMBER_OF_OUTPUTS, TENSOR_ARENA_SIZE> ml;
+BLEServer *pServer = NULL;
+BLECharacteristic *pCharacteristic = NULL;
+BLEScan *bleScan = NULL;
 
-void leggi_accelerometro(float &x, float &y, float &z, bool in_movimento) {
-    if (in_movimento) {
-        x = random(-500, 500) / 1000.0;  // [-0.5, 0.5]
-        y = random(-500, 500) / 1000.0;
-        z = random(900, 980) / 100.0;  // [9.0, 9.8]
-    } else {
-        x = random(-50, 50) / 1000.0;  // [-0.05, 0.05]
-        y = random(-50, 50) / 1000.0;
-        z = random(975, 985) / 100.0;  // [9.75, 9.85]
+#define BLE_periferica 1
+
+const char *REQUEST_CONNECTION_MESSAGE = "REQUEST_CONNECTION";
+const char *CONFIRM_CONNECTION_MESSAGE = "CONFIRM_CONNECTION";
+
+
+/* 
+class MyClientCallback : public BLEClientCallbacks {
+    void onConnect(BLEClient* pClient) {
+        Serial.println("Client connesso");
+        display->print("Client connesso");
+        display->display();
     }
-}
 
-void leggi_giroscopio(float &x, float &y, float &z, bool in_movimento) {
-    if (in_movimento) {
-        x = random(-500, 500) / 1000.0;  // [-0.5, 0.5]
-        y = random(-500, 500) / 1000.0;
-        z = random(-500, 500) / 1000.0;
-    } else {
-        x = random(-20, 20) / 1000.0;  // [-0.02, 0.02]
-        y = random(-20, 20) / 1000.0;
-        z = random(-20, 20) / 1000.0;
+    void onDisconnect(BLEClient* pClient) {
+        display->clearDisplay();
+        display->display();
+        Serial.println("Client disconnesso, riavvio scansione...");
+        display->println("Client disconnesso, riavvio scansione...");
+        display->display();
+        bleScan->start(0); // Riavvia la scansione
     }
-}
+};
+*/
 
-float leggi_solcometro(bool in_movimento) {
-    if (in_movimento) {
-        return random(100, 1500) / 100.0;  // [1.0, 15.0]
-    } else {
-        return random(0, 5) / 100.0;  // [0.00, 0.05]
+class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks
+{
+    void onResult(BLEAdvertisedDevice advertisedDevice)
+    {
+        Serial.print("Dispositivo trovato: ");
+        Serial.println(advertisedDevice.toString().c_str());
+        display->println("Dispositivo trovato: ");
+        display->display();
+
+        // Controlla se il dispositivo trovato è quello che stai cercando
+        if (advertisedDevice.haveServiceUUID() && advertisedDevice.isAdvertisingService(BLEUUID(SERVICE_UUID)))
+        {
+            Serial.println("Dispositivo desiderato trovato, connessione in corso...");
+            bleScan->stop();
+            BLEDevice::getScan()->stop();
+            BLEClient *pClient = BLEDevice::createClient();
+            pClient->connect(&advertisedDevice);
+
+            Serial.println("Connesso al dispositivo");
+            display->println("Connesso al dispositivo");
+            display->display();
+        }
     }
-}
+};
 
-void setup() {
-    IoTBoard::init_serial();  
-    randomSeed(millis()); 
+class MyCharacteristicCallbacks : public BLECharacteristicCallbacks
+{
+    void onWrite(BLECharacteristic *pCharacteristic)
+    {
+        std::string value = std::string(pCharacteristic->getValue().c_str());
+        Serial.print("Valore scritto: ");
+        Serial.println(value.c_str());
 
-    if (!ml.begin(ormeggio_model)) {  
-        Serial.println("Errore nell'inizializzazione del modello");
-    } else {
-        Serial.println("Modello caricato"); 
-    }
-}
+        display->println(value.c_str());
+        display->display();
 
-void loop() {
-    const int NUM_RILEVAZIONI = 10;
-    int count_non_ormeggiata = 0;
-
-    Serial.println("10 rilevazioni in corso...");
-    
-    for (int i = 0; i < NUM_RILEVAZIONI; i++) {
-        float input[NUMBER_OF_INPUTS];  
-        bool in_movimento = random(0, 2);  
-
-        // Lettura sensori
-        leggi_accelerometro(input[0], input[1], input[2], in_movimento);
-        leggi_giroscopio(input[3], input[4], input[5], in_movimento);
-        input[6] = leggi_solcometro(in_movimento);
-
-        // Predizione
-        float output[NUMBER_OF_OUTPUTS];  
-        ml.predict(input, output);  
-
-        // Interpretazione dell'output
-        bool is_ormeggiata = output[0] < 0.5;
-        
-        // Conta quante volte la barca è risultata "non ormeggiata"
-        if (!is_ormeggiata) {
-            count_non_ormeggiata++;
+        JsonDocument doc;
+        DeserializationError error = deserializeJson(doc, value);
+        if (error)
+        {
+            Serial.print("Errore nella deserializzazione del messaggio JSON: ");
+            Serial.println(error.c_str());
+            display->println("Errore nella deserializzazione del messaggio JSON");
+            display->display();
+            return;
         }
 
-        // Stampe di controllo
-        Serial.print("Rilevazione "); Serial.print(i + 1);
-        Serial.print(" - Predizione: "); Serial.print(output[0]);
-        Serial.print(" -> ");
-        Serial.println(is_ormeggiata ? "Barca Ormeggiata" : "Barca Non Ormeggiata");
+        const char *type = doc["type"];
 
-        delay(5000);  // 5 secondi di attesa
+        if (type != nullptr)
+        {
+            Serial.print("Tipo di messaggio: ");
+            Serial.println(type);
+            display->println("Tipo di messaggio: ");
+            display->println(type);
+            display->display();
+
+
+            JsonDocument confirmDoc;
+            confirmDoc["type"] = "CONFIRM_CONNECTION";
+            char buffer[256];
+            serializeJson(confirmDoc, buffer);
+
+
+
+            if (strcmp(type, "REQUEST_CONNECTION") == 0)
+            {
+                Serial.println("Richiesta di connessione ricevuta");
+                display->println("Richiesta di connessione ricevuta");
+                display->display();
+                pCharacteristic->setValue(buffer);
+                pCharacteristic->notify();
+            }
+            else if (strcmp(type, "CONFIRM_CONNECTION") == 0)
+            {
+                Serial.println("Connessione confermata");
+                display->println("Connessione confermata");
+                display->display();
+            }
+            else
+            {
+                Serial.println("Tipo di messaggio sconosciuto");
+                display->println("Tipo di messaggio sconosciuto");
+                display->display();
+            }
+        }
     }
+};
 
-    Serial.print("Conteggio 'Barca Non Ormeggiata': ");
-    Serial.println(count_non_ormeggiata);
+void setup()
+{
+    Serial.begin(115200);
 
-    if (count_non_ormeggiata > NUM_RILEVAZIONI / 2) {
-        Serial.println("La Barca NON è ormeggiata");
-    } else {
-        Serial.println("La Barca risulta ormeggiata");
-    }
+    IoTBoard::init_serial();
+    IoTBoard::init_leds();
+    IoTBoard::init_display();
+    display->println("Display enabled");
+    display->display();
 
-    // Attesa di 45 minuti
-    Serial.println("Attesa 45 minuti...");
-    delay(45 * 60 * 1000);
+#ifndef BLE_periferica
+    BLEDevice::init("");
+    bleScan = BLEDevice::getScan();
+    bleScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
+    bleScan->setActiveScan(true);
+    bleScan->setInterval(100);
+    bleScan->setWindow(90);
+    bleScan->start(5000, true);
+#endif
+
+#ifdef BLE_periferica
+    BLEDevice::init("LedBello");
+    BLEServer *bleServer = BLEDevice::createServer();
+    BLEService *servizio = bleServer->createService(SERVICE_UUID);
+    BLECharacteristic *caratteristica = servizio->createCharacteristic(CHARACTERISTIC_UUID, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
+    caratteristica->setValue("off");
+    caratteristica->setCallbacks(new MyCharacteristicCallbacks());
+    servizio->start();
+
+    BLEAdvertising *bleAdvertising = BLEDevice::getAdvertising();
+    bleAdvertising->addServiceUUID(SERVICE_UUID);
+    bleAdvertising->setScanResponse(true);
+    bleAdvertising->start();
+    Serial.print("Configurato ");
+    display->println("Ricerca...");
+    display->display();
+#endif
+}
+
+void loop()
+{
+
+    // Serial.print("Configurato ");
+
+    delay(200); // Utilizza delay invece di sleep per Arduino
 }
