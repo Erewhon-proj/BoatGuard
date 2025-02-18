@@ -1,6 +1,7 @@
 #include <iot_board.h>
 #include "EloquentTinyML.h"
 #include "ormeggio_etichettati.h"
+#include "esp_sleep.h"
 
 #define NUMBER_OF_INPUTS 7   
 #define NUMBER_OF_OUTPUTS 1  
@@ -10,6 +11,7 @@ Eloquent::TinyML::TfLite<NUMBER_OF_INPUTS, NUMBER_OF_OUTPUTS, TENSOR_ARENA_SIZE>
 
 
 const unsigned long INTERVALLO_OK_MS = 6UL * 60UL * 60UL * 1000UL; // 6 ore
+const unsigned long sleepTime =  45UL * 60UL * 1000UL; // 6 ore
 unsigned long lastOkMsgTime = 0;  // Ultimo OK inviato
 const char CHIAVE_CIFRATURA = 0x5A; // Chiave di cifratura
 
@@ -21,7 +23,7 @@ float leggi_solcometro(bool in_movimento);
 
 // Lora
 String criptaMessaggio(const char* messaggio);
-void inviaMessaggioLoRa(const char* tipo);
+void inviaMessaggioLoRa(const char* msg);
 
 
 void setup() {
@@ -50,7 +52,7 @@ void loop() {
     const int NUM_RILEVAZIONI = 10;
     int count_non_ormeggiata = 0;
 
-    Serial.println("10 rilevazioni in corso...");
+    Serial.println("Rilevazioni in corso...");
     
     for (int i = 0; i < NUM_RILEVAZIONI; i++) {
         
@@ -101,19 +103,12 @@ void loop() {
 
     }
 
-    // Attesa 45 minuti 
-    Serial.println("Attesa 45 minuti...");
-    delay(45UL * 60UL * 1000UL);
+    // Sleep per 45 minuti
+    esp_sleep_enable_timer_wakeup(sleepTime);
+    esp_deep_sleep_start();
+
 }
 
-
-String criptaMessaggio(const char* messaggio) {
-    String criptato = messaggio;
-    for (int i = 0; i < criptato.length(); i++) {
-        criptato[i] ^= CHIAVE_CIFRATURA;  // XOR con la chiave
-    }
-    return criptato;
-}
 
 // Letture Sensori Simulate
 void leggi_accelerometro(float &x, float &y, float &z, bool in_movimento) {
@@ -149,9 +144,18 @@ float leggi_solcometro(bool in_movimento) {
 }
 
 
-void inviaMessaggioLoRa(const char* tipo) {
+// Lora & Cifratura
+String criptaMessaggio(const char* messaggio) {
+    String criptato = messaggio;
+    for (int i = 0; i < criptato.length(); i++) {
+        criptato[i] ^= CHIAVE_CIFRATURA;  // XOR con la chiave
+    }
+    return criptato;
+}
 
-    String messaggio = criptaMessaggio(tipo);  // Cifriamo "OK" o "ALARM"
+void inviaMessaggioLoRa(const char* msg) {
+
+    String messaggio = criptaMessaggio(msg);  // Cifriamo "OK" o "ALARM"
 
     lora->beginPacket();
     lora->write(0xFF);  // Broadcast
@@ -160,6 +164,6 @@ void inviaMessaggioLoRa(const char* tipo) {
     lora->write((const uint8_t*)messaggio.c_str(), messaggio.length());
     lora->endPacket();
     
-    Serial.print("Messaggio LoRa inviato (cifrato): ");
+    Serial.print("Messaggio LoRa inviato: ");
     Serial.println(messaggio);
 }
