@@ -15,11 +15,26 @@ const unsigned long sleepTime =  45UL * 60UL * 1000UL; // 6 ore
 unsigned long lastOkMsgTime = 0;  // Ultimo OK inviato
 const char CHIAVE_CIFRATURA = 0x5A; // Chiave di cifratura
 
+// Variabili posizione iniziale
+static float posX = 0.0;        
+static float posY = 0.0;        
+static float direzione = 0.0;   // Direzione in radianti
 
-// Letture Sensori Simulate
+// Definizione stati barca
+enum StatoBarca {
+    STATO_ORMEGGIATA,
+    STATO_RUBATA
+  };
+
+StatoBarca stato_attuale = STATO_ORMEGGIATA; // stato iniziale
+
+// Letture Sensori Simulate & Predizione
 void leggi_accelerometro(float &x, float &y, float &z, bool in_movimento);
 void leggi_giroscopio(float &x, float &y, float &z, bool in_movimento);
 float leggi_solcometro(bool in_movimento);
+
+bool barcaOrmeggiata(); 
+void aggiornaPosizioneBarca(float deltaTimeSec);
 
 // Lora
 String criptaMessaggio(const char* messaggio);
@@ -49,15 +64,58 @@ void setup() {
 }
 
 void loop() {
+    switch (stato_attuale) {
+
+      case STATO_ORMEGGIATA: {
+          // Verifico se la barca risulta ormeggiata o meno
+          bool ormeggiata = barcaOrmeggiata();
+          if (!ormeggiata) {
+              Serial.println("La Barca NON è ormeggiata -> ALLARME!");
+              inviaMessaggioLoRa("ALLARME");
+              stato_attuale = STATO_RUBATA;
+          }
+          else {
+              Serial.println("La Barca risulta ormeggiata.");
+
+              // Invio "OK" se è passato INTERVALLO_OK_MS
+              unsigned long now = millis();
+              if (now - lastOkMsgTime > INTERVALLO_OK_MS) {
+                  inviaMessaggioLoRa("OK");
+                  lastOkMsgTime = now;
+              }
+
+              // Deep sleep per 45 minuti 
+              esp_sleep_enable_timer_wakeup(sleepTime);
+              esp_deep_sleep_start();
+          }
+      }
+      break;
+
+      case STATO_RUBATA: {
+          // Stato di allarme con aggiornamento posizione
+          
+          // Aggiornamento posizione ogni 5s
+          aggiornaPosizioneBarca(5.0); 
+          delay(5000);
+
+          // Meccanisco di uscita tramite reset manuale 
+      }
+      break;
+    }
+}
+
+// Rilevazioni barca
+bool barcaOrmeggiata() {
     const int NUM_RILEVAZIONI = 10;
     int count_non_ormeggiata = 0;
 
-    Serial.println("Rilevazioni in corso...");
-    
+    Serial.println("Eseguo 10 rilevazioni per inferenza...");
+
     for (int i = 0; i < NUM_RILEVAZIONI; i++) {
-        
         float input[NUMBER_OF_INPUTS];  
-        bool in_movimento = random(0, 2); 
+
+        const int PROB_MOVIMENTO_PERCENT = 70; // 70% di essere in movimento
+        bool in_movimento = (random(0, 100) < PROB_MOVIMENTO_PERCENT);
 
         // Lettura sensori simulati
         leggi_accelerometro(input[0], input[1], input[2], in_movimento);
@@ -68,47 +126,30 @@ void loop() {
         float output[NUMBER_OF_OUTPUTS];  
         ml.predict(input, output);  
 
-        // Interpretazione dell'output: < 0.5 => ormeggiata
         bool is_ormeggiata = (output[0] < 0.5);
-
-
         if (!is_ormeggiata) {
             count_non_ormeggiata++;
         }
 
-        Serial.print("Rilevazione "); Serial.print(i + 1);
-        Serial.print(" - Predizione: "); Serial.print(output[0]);
-        Serial.print(" -> ");
-        Serial.println(is_ormeggiata ? "Barca Ormeggiata" : "Barca Non Ormeggiata");
+        Serial.print("  Rilevazione "); 
+        Serial.print(i + 1);
+        Serial.print(" -> output=");
+        Serial.print(output[0]);
+        Serial.print(" => ");
+        Serial.println(is_ormeggiata ? "BarcaOrmeggiata" : "BarcaNonOrmeggiata");
 
-        delay(5000);  // 5 secondi di attesa 
+        delay(1000); 
     }
 
-  
-    Serial.print("Conteggio 'Barca Non Ormeggiata': ");
+    Serial.print("Conteggio 'Barca NON Ormeggiata': ");
     Serial.println(count_non_ormeggiata);
 
     if (count_non_ormeggiata > (NUM_RILEVAZIONI / 2)) {
-        Serial.println("La Barca NON è ormeggiata");
-        inviaMessaggioLoRa("ALLARME");
+        return false; // barca rubata
     } else {
-        Serial.println("La Barca risulta ormeggiata");
-
-        // Controllo se mandare OK
-        unsigned long now = millis();
-        if (now - lastOkMsgTime > INTERVALLO_OK_MS) {
-            inviaMessaggioLoRa("OK");
-            lastOkMsgTime = now;
-        }
-
+        return true;  // barca ormeggiata
     }
-
-    // Sleep per 45 minuti
-    esp_sleep_enable_timer_wakeup(sleepTime);
-    esp_deep_sleep_start();
-
 }
-
 
 // Letture Sensori Simulate
 void leggi_accelerometro(float &x, float &y, float &z, bool in_movimento) {
@@ -143,7 +184,6 @@ float leggi_solcometro(bool in_movimento) {
     }
 }
 
-
 // Lora & Cifratura
 String criptaMessaggio(const char* messaggio) {
     String criptato = messaggio;
@@ -166,4 +206,32 @@ void inviaMessaggioLoRa(const char* msg) {
     
     Serial.print("Messaggio LoRa inviato: ");
     Serial.println(messaggio);
+}
+
+void aggiornaPosizioneBarca(float deltaTimeSec) {
+    // Lettura giroscopio 
+    float gx, gy, gz;
+    leggi_giroscopio(gx, gy, gz, true);
+
+    direzione += gz * deltaTimeSec;
+
+    // Lettura solcometro 
+    float velocita = leggi_solcometro(true);
+
+    // Aggiorniamo la posizione
+    posX += velocita * cos(direzione) * deltaTimeSec;
+    posY += velocita * sin(direzione) * deltaTimeSec;
+
+    // Invia posizione stimata via LoRa
+    char buffer[60];
+    snprintf(buffer, sizeof(buffer), "POS X=%.2f Y=%.2f", posX, posY);
+    inviaMessaggioLoRa(buffer);
+
+    // Messaggi di debug su Serial
+    Serial.print("Nuova direzione (rad) = ");
+    Serial.println(direzione);
+    Serial.print("Posizione X = ");
+    Serial.print(posX);
+    Serial.print(", Y = ");
+    Serial.println(posY);
 }
