@@ -19,14 +19,27 @@ BLECharacteristic *pCharacteristic = NULL;
 const char *REQUEST_CONNECTION_MESSAGE = "REQUEST_CONNECTION";
 const char *CONFIRM_CONNECTION_MESSAGE = "CONFIRM_CONNECTION";
 
-// Rimuovi le definizioni duplicate
-// Preferences preferences;
-// String connectedDeviceID = "";
-// String targetDeviceMAC = "";
-// BLEScan *bleScan = NULL;
-// bool isConfigurated = false;
+extern bool isConfigurated;
+extern bool isNearMe;
+extern bool isConnected;
 
 extern void setup();
+
+void setCostants()
+{
+    IoTBoard::init_serial();
+    IoTBoard::init_leds();
+    IoTBoard::init_display();
+    BLEDevice::init("Esp32");
+
+    // set isConfigurated
+    preferences.begin("config", true);
+    isConfigurated = preferences.isKey("targa");
+    preferences.end();
+
+    // set isNearMe
+    isNearMe = getNearMe();
+}
 
 void startAdvertising()
 {
@@ -34,7 +47,6 @@ void startAdvertising()
     display->println("Start ADV...");
     display->display();
 
-    BLEDevice::init("LedBello");
     BLEServer *bleServer = BLEDevice::createServer();
     bleServer->setCallbacks(new MyServerCallbacks());
     BLEService *servizio = bleServer->createService(SERVICE_UUID);
@@ -46,71 +58,65 @@ void startAdvertising()
     bleAdvertising->addServiceUUID(SERVICE_UUID);
     bleAdvertising->setScanResponse(true);
     bleAdvertising->start();
-    Serial.print("Configurato ");
-    display->println("Ricerca...");
+    Serial.print("Attendo Connessione...");
+    display->println("Attendo Connessione...");
     display->display();
+}
+
+BLEClient *bleClient()
+{
+    Serial.println("Scansione in corso...");
+    display->println("Scansione in corso...");
+    display->display();
+
+    BLEClient *pClient = BLEDevice::createClient();
+    BLEDevice::init("");
+    bleScan = BLEDevice::getScan();
+    bleScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
+    bleScan->setActiveScan(true);
+    BLEDevice::getScan()->setActiveScan(true);
+    bleScan->setInterval(100);
+    bleScan->setWindow(90);
+    bleScan->start(5, false); // Scansione per 5 secondi
+    // BLEDevice::deinit(false);
+    return pClient;
 }
 
 void setup()
 {
     Serial.begin(115200);
+    setCostants();
 
-    IoTBoard::init_serial();
-    IoTBoard::init_leds();
-    IoTBoard::init_display();
-
-    preferences.begin("config", true);
-    // isConfigurated = preferences.isKey("targa");
-    preferences.end();
+    BLEClient *pClient = bleClient();
 
     if (isConfigurated)
     {
         Serial.println("Informazioni già configurate");
-        printPreferences();
+        // printPreferences();
     }
 
-    // startAdvertising();
-
-    if (true)
+    if (!isConnected)
     {
-        Serial.println("Connessione diretta...");
-        display->println("Connessione diretta con...");
-        display->display();
-
-        BLEClient *pClient = BLEDevice::createClient();
-
-        BLEDevice::init("");
-        bleScan = BLEDevice::getScan();
-        bleScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
-        bleScan->setActiveScan(true);
-        BLEDevice::getScan()->setActiveScan(true);
-        bleScan->setInterval(100);
-        bleScan->setWindow(90);
-        bleScan->start(5, false); // Scansione per 5 secondi
-        // BLEDevice::deinit(false);
-
-        delay(5000); // Attendi 5 secondi
-
-        if (!pClient->isConnected())
-        {
-            Serial.println("Dispositivo non trovato, diventando visibile per l'accoppiamento...");
-            display->println("Dispositivo non trovato, diventando visibile...");
-            display->display();
-
-            startAdvertising();
-        }
-    }
-    else
-    {
-        Serial.println("Nessun dispositivo target specificato, diventando visibile per l'accoppiamento...");
-        display->println("Nessun dispositivo target specificato, diventando visibile...");
-        display->display();
-
         startAdvertising();
     }
 }
 
 void loop()
 {
+
+    /*
+    BLEClient *pClient = bleClient();
+
+    if (isConfigurated)
+    {
+        Serial.println("Informazioni già configurate");
+        // printPreferences();
+    }
+    if (!isConnected)
+    {
+        startAdvertising();
+    }
+
     delay(200);
+    */
 }

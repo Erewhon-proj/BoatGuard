@@ -13,8 +13,8 @@ extern Preferences preferences;
 extern String connectedDeviceID;
 extern BLEScan *bleScan;
 extern bool isConfigurated;
-extern bool mnearMe;
-extern bool nearMe;
+extern bool isNearMe;
+extern bool isConnected;
 
 void printPreferences();
 void connectToTargetDevice();

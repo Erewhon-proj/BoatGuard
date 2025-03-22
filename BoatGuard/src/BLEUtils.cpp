@@ -12,16 +12,17 @@ String connectedDeviceID = "";
 BLEScan *bleScan = NULL;
 
 bool isConfigurated = false;
-bool nearMe = false;
+bool isNearMe = false;
+bool isConnected = false;
 
 bool getNearMe()
 {
-    return nearMe;
+    return isNearMe;
 }
 
 void setNearMe(bool value)
 {
-    nearMe = value;
+    isNearMe = value;
     display->println("Nearme trovato");
     display->display();
 }
@@ -86,6 +87,7 @@ String getServiceID()
 
 void MyServerCallbacks::onConnect(BLEServer *pServer, esp_ble_gatts_cb_param_t *param)
 {
+    isConnected = true;
     Serial.println("Client connesso");
     display->print("Client connesso");
     display->display();
@@ -95,6 +97,7 @@ void MyServerCallbacks::onConnect(BLEServer *pServer, esp_ble_gatts_cb_param_t *
 
 void MyServerCallbacks::onDisconnect(BLEServer *pServer)
 {
+    isConnected = false;
     display->clearDisplay();
     display->display();
     Serial.println("Client disconnesso, riavvio...");
