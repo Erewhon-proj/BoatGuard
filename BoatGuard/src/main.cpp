@@ -32,6 +32,16 @@ void setCostants()
     IoTBoard::init_display();
     BLEDevice::init("Esp32");
 
+    preferences.begin("config", false);
+    if (!preferences.isKey("macBle"))
+    {
+        String mac = BLEDevice::getAddress().toString();
+        preferences.putString("macBle", mac);
+        Serial.print("Salvato MAC BLE: ");
+        Serial.println(mac);
+    }
+    preferences.end();
+
     // set isConfigurated
     preferences.begin("config", true);
     isConfigurated = preferences.isKey("targa");

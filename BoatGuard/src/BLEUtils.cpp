@@ -37,6 +37,7 @@ void printPreferences()
         String lat = preferences.getString("lat");
         String lng = preferences.getString("long");
         String serviceID = preferences.getString("serviceID");
+        String macBle = preferences.getString("macBle");
 
         Serial.println("Informazioni salvate:");
         Serial.print("Targa: ");
@@ -49,6 +50,8 @@ void printPreferences()
         Serial.println(lng);
         Serial.print("Service ID: ");
         Serial.println(serviceID);
+        Serial.print("Mac Ble: ");
+        Serial.println(macBle);
     }
     else
     {
@@ -65,6 +68,7 @@ JsonObject getPreferences(JsonDocument &doc)
     String lat = preferences.getString("lat");
     String lng = preferences.getString("long");
     String serviceID = preferences.getString("serviceID");
+    String macBle = preferences.getString("macBle");
     preferences.end();
 
     JsonObject data = doc.createNestedObject("data");
@@ -73,6 +77,7 @@ JsonObject getPreferences(JsonDocument &doc)
     data["lat"] = lat;
     data["long"] = lng;
     data["serviceID"] = serviceID;
+    data["macBle"] = macBle;
 
     return data;
 }
@@ -117,8 +122,8 @@ void MyAdvertisedDeviceCallbacks::onResult(BLEAdvertisedDevice advertisedDevice)
     {
         Serial.println("Dispositivo desiderato trovato, connessione in corso...");
         setNearMe(true);
-        // bleScan->stop();
-        // BLEDevice::getScan()->stop();
+        bleScan->stop();
+        BLEDevice::getScan()->stop();
         // startAdvertising();
     }
 }
@@ -164,6 +169,10 @@ void MyCharacteristicCallbacks::onWrite(BLECharacteristic *pCharacteristic)
         {
             handleSendInfo(doc);
         }
+        else if (strcmp(type, "SET_POSITION") == 0)
+        {
+            handleSetPosition(doc);
+        }
         else
         {
             Serial.println("Tipo di messaggio sconosciuto");
@@ -193,7 +202,6 @@ void MyCharacteristicCallbacks::handleGetInfo(BLECharacteristic *pCharacteristic
     StaticJsonDocument<256> dataDoc;
     dataDoc["type"] = "GET_INFO";
     JsonObject data = getPreferences(dataDoc);
-    data["connectedDeviceID"] = connectedDeviceID;
 
     char buffer[256];
     serializeJson(dataDoc, buffer);
@@ -230,5 +238,33 @@ void MyCharacteristicCallbacks::handleSendInfo(JsonDocument &doc)
             printPreferences();
             // isConfigurated = true;
         }
+    }
+}
+
+void MyCharacteristicCallbacks::handleSetPosition(JsonDocument &doc)
+{
+    JsonObject data = doc["data"];
+    Serial.println("Ricevuto messaggio setPosition");
+
+    if (!data.isNull())
+    {
+        double lat = data["lat"];
+        double lng = data["long"];
+        Serial.print("Set position: lat = ");
+        Serial.print(lat);
+        Serial.print(", lng = ");
+        Serial.println(lng);
+        display->println("Posizione impostata:");
+        display->print("lat: ");
+        display->println(lat);
+        display->print("lng: ");
+        display->println(lng);
+        display->display();
+    }
+    else
+    {
+        Serial.println("Messaggio setPosition senza dati di posizione");
+        display->println("Errore setPosition");
+        display->display();
     }
 }
