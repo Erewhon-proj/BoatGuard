@@ -57,49 +57,23 @@ void setCostants()
     isNearMe = getNearMe();
 }
 
-void setup()
+BLEClient *createBLEClient()
 {
-    IoTBoard::init_serial();
-    randomSeed(millis());
+    Serial.println("Scansione in corso...");
+    display->println("Scansione in corso...");
+    display->display();
 
-    Serial.begin(115200);
-    setCostants();
-
-    BLEClient *pClient = bleClient();
-
-    if (isConfigurated)
-    {
-        Serial.println("Informazioni già configurate");
-        // printPreferences();
-    }
-
-    if (!isConnected)
-    {
-        startAdvertising();
-    }
-
-    // Caricamento modello
-    if (!ml.begin(ormeggio_model))
-    {
-        Serial.println("Errore nell'inizializzazione del modello");
-    }
-    else
-    {
-        Serial.println("Modello caricato");
-    }
-
-    // Inizializzazione LoRa
-    IoTBoard::init_spi();
-    if (!IoTBoard::init_lora())
-    {
-        Serial.println("LoRa Error");
-    }
-    else
-    {
-        Serial.println("LoRa abilitato");
-    }
-
-    lastOkMsgTime = millis();
+    BLEClient *pClient = BLEDevice::createClient();
+    BLEDevice::init("");
+    bleScan = BLEDevice::getScan();
+    bleScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
+    bleScan->setActiveScan(true);
+    BLEDevice::getScan()->setActiveScan(true);
+    bleScan->setInterval(100);
+    bleScan->setWindow(90);
+    bleScan->start(5, false); // Scansione per 5 secondi
+    // BLEDevice::deinit(false);
+    return pClient;
 }
 
 // Rilevazioni barca
@@ -206,23 +180,49 @@ void startAdvertising()
     display->display();
 }
 
-BLEClient *bleClient()
+void setup()
 {
-    Serial.println("Scansione in corso...");
-    display->println("Scansione in corso...");
-    display->display();
+    IoTBoard::init_serial();
+    randomSeed(millis());
 
-    BLEClient *pClient = BLEDevice::createClient();
-    BLEDevice::init("");
-    bleScan = BLEDevice::getScan();
-    bleScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
-    bleScan->setActiveScan(true);
-    BLEDevice::getScan()->setActiveScan(true);
-    bleScan->setInterval(100);
-    bleScan->setWindow(90);
-    bleScan->start(5, false); // Scansione per 5 secondi
-    // BLEDevice::deinit(false);
-    return pClient;
+    Serial.begin(115200);
+    setCostants();
+
+    BLEClient *pClient = createBLEClient();
+
+    if (isConfigurated)
+    {
+        Serial.println("Informazioni già configurate");
+        // printPreferences();
+    }
+
+    if (!isConnected)
+    {
+        startAdvertising();
+    }
+
+    // Caricamento modello
+    if (!ml.begin(ormeggio_model))
+    {
+        Serial.println("Errore nell'inizializzazione del modello");
+    }
+    else
+    {
+        Serial.println("Modello caricato");
+    }
+
+    // Inizializzazione LoRa
+    IoTBoard::init_spi();
+    if (!IoTBoard::init_lora())
+    {
+        Serial.println("LoRa Error");
+    }
+    else
+    {
+        Serial.println("LoRa abilitato");
+    }
+
+    lastOkMsgTime = millis();
 }
 
 void loop()
