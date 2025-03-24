@@ -1,8 +1,6 @@
 #include <iot_board.h>
 #include "EloquentTinyML.h"
 #include "ormeggio_etichettati.h"
-#include "esp_sleep.h"
-
 #include <BLEDevice.h>
 #include <BLEUtils.h>
 #include <BLEServer.h>
@@ -11,6 +9,8 @@
 #include <ArduinoJson.h>
 #include <Preferences.h>
 #include "BLEUtils.h"
+#include "sensori.h"
+#include "lora_utils.h" // Aggiunto
 
 #define SERVICE_UUID "12345678-1234-1234-1234-123456789012"
 #define CHARACTERISTIC_UUID "87654321-4321-4321-4321-210987654321"
@@ -137,54 +137,6 @@ void setup()
     lastOkMsgTime = millis();
 }
 
-void loop()
-{
-    switch (stato_attuale)
-    {
-
-    case STATO_ORMEGGIATA:
-    {
-        // Verifico se la barca risulta ormeggiata o meno
-        bool ormeggiata = barcaOrmeggiata();
-        if (!ormeggiata)
-        {
-            Serial.println("La Barca NON è ormeggiata -> ALLARME!");
-            inviaMessaggioLoRa("ALLARME");
-            stato_attuale = STATO_RUBATA;
-        }
-        else
-        {
-            Serial.println("La Barca risulta ormeggiata.");
-
-            // Invio "OK" se è passato INTERVALLO_OK_MS
-            unsigned long now = millis();
-            if (now - lastOkMsgTime > INTERVALLO_OK_MS)
-            {
-                inviaMessaggioLoRa("OK");
-                lastOkMsgTime = now;
-            }
-
-            // Deep sleep per 45 minuti
-            esp_sleep_enable_timer_wakeup(sleepTime);
-            esp_deep_sleep_start();
-        }
-    }
-    break;
-
-    case STATO_RUBATA:
-    {
-        // Stato di allarme con aggiornamento posizione
-
-        // Aggiornamento posizione ogni 5s
-        aggiornaPosizioneBarca(5.0);
-        delay(5000);
-
-        // Meccanisco di uscita tramite reset manuale
-    }
-    break;
-    }
-}
-
 // Rilevazioni barca
 bool barcaOrmeggiata()
 {
@@ -236,78 +188,6 @@ bool barcaOrmeggiata()
     {
         return true; // barca ormeggiata
     }
-}
-
-// Letture Sensori Simulate
-void leggi_accelerometro(float &x, float &y, float &z, bool in_movimento)
-{
-    if (in_movimento)
-    {
-        x = random(-500, 500) / 1000.0; // [-0.5, 0.5]
-        y = random(-500, 500) / 1000.0;
-        z = random(900, 980) / 100.0; // [9.0, 9.8]
-    }
-    else
-    {
-        x = random(-50, 50) / 1000.0; // [-0.05, 0.05]
-        y = random(-50, 50) / 1000.0;
-        z = random(975, 985) / 100.0; // [9.75, 9.85]
-    }
-}
-
-void leggi_giroscopio(float &x, float &y, float &z, bool in_movimento)
-{
-    if (in_movimento)
-    {
-        x = random(-500, 500) / 1000.0; // [-0.5, 0.5]
-        y = random(-500, 500) / 1000.0;
-        z = random(-500, 500) / 1000.0;
-    }
-    else
-    {
-        x = random(-20, 20) / 1000.0; // [-0.02, 0.02]
-        y = random(-20, 20) / 1000.0;
-        z = random(-20, 20) / 1000.0;
-    }
-}
-
-float leggi_solcometro(bool in_movimento)
-{
-    if (in_movimento)
-    {
-        return random(100, 1500) / 100.0; // [1.0, 15.0]
-    }
-    else
-    {
-        return random(0, 5) / 100.0; // [0.00, 0.05]
-    }
-}
-
-// Lora & Cifratura
-String criptaMessaggio(const char *messaggio)
-{
-    String criptato = messaggio;
-    for (int i = 0; i < criptato.length(); i++)
-    {
-        criptato[i] ^= CHIAVE_CIFRATURA; // XOR con la chiave
-    }
-    return criptato;
-}
-
-void inviaMessaggioLoRa(const char *msg)
-{
-
-    String messaggio = criptaMessaggio(msg); // Cifriamo "OK" o "ALARM"
-
-    lora->beginPacket();
-    lora->write(0xFF); // Broadcast
-    lora->write(0x01); // Indirizzo mittente
-    lora->write(messaggio.length());
-    lora->write((const uint8_t *)messaggio.c_str(), messaggio.length());
-    lora->endPacket();
-
-    Serial.print("Messaggio LoRa inviato: ");
-    Serial.println(messaggio);
 }
 
 void aggiornaPosizioneBarca(float deltaTimeSec)
@@ -378,4 +258,52 @@ BLEClient *bleClient()
     bleScan->start(5, false); // Scansione per 5 secondi
     // BLEDevice::deinit(false);
     return pClient;
+}
+
+void loop()
+{
+    switch (stato_attuale)
+    {
+
+    case STATO_ORMEGGIATA:
+    {
+        // Verifico se la barca risulta ormeggiata o meno
+        bool ormeggiata = barcaOrmeggiata();
+        if (!ormeggiata)
+        {
+            Serial.println("La Barca NON è ormeggiata -> ALLARME!");
+            inviaMessaggioLoRa("ALLARME");
+            stato_attuale = STATO_RUBATA;
+        }
+        else
+        {
+            Serial.println("La Barca risulta ormeggiata.");
+
+            // Invio "OK" se è passato INTERVALLO_OK_MS
+            unsigned long now = millis();
+            if (now - lastOkMsgTime > INTERVALLO_OK_MS)
+            {
+                inviaMessaggioLoRa("OK");
+                lastOkMsgTime = now;
+            }
+
+            // Deep sleep per 45 minuti
+            esp_sleep_enable_timer_wakeup(sleepTime);
+            esp_deep_sleep_start();
+        }
+    }
+    break;
+
+    case STATO_RUBATA:
+    {
+        // Stato di allarme con aggiornamento posizione
+
+        // Aggiornamento posizione ogni 5s
+        aggiornaPosizioneBarca(5.0);
+        delay(5000);
+
+        // Meccanisco di uscita tramite reset manuale
+    }
+    break;
+    }
 }
