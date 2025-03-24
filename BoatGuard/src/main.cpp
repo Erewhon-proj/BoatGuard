@@ -10,7 +10,7 @@
 #include <Preferences.h>
 #include "BLEUtils.h"
 #include "sensori.h"
-#include "lora_utils.h" // Aggiunto
+#include "lora_utils.h"
 
 #define SERVICE_UUID "12345678-1234-1234-1234-123456789012"
 #define CHARACTERISTIC_UUID "87654321-4321-4321-4321-210987654321"
