@@ -11,17 +11,10 @@
 #include "BLEUtils.h"
 #include "sensori.h"
 #include "lora_utils.h"
-
-#define SERVICE_UUID "12345678-1234-1234-1234-123456789012"
-#define CHARACTERISTIC_UUID "87654321-4321-4321-4321-210987654321"
+#include "costants.h"
 
 BLEServer *pServer = NULL;
 BLECharacteristic *pCharacteristic = NULL;
-
-#define BLE_periferica 1
-
-const char *REQUEST_CONNECTION_MESSAGE = "REQUEST_CONNECTION";
-const char *CONFIRM_CONNECTION_MESSAGE = "CONFIRM_CONNECTION";
 
 extern bool isConfigurated;
 extern bool isNearMe;
@@ -29,42 +22,14 @@ extern bool isConnected;
 
 extern void setup();
 
-#define NUMBER_OF_INPUTS 7
-#define NUMBER_OF_OUTPUTS 1
-#define TENSOR_ARENA_SIZE 2 * 1024
-
 Eloquent::TinyML::TfLite<NUMBER_OF_INPUTS, NUMBER_OF_OUTPUTS, TENSOR_ARENA_SIZE> ml;
-
-const unsigned long INTERVALLO_OK_MS = 6UL * 60UL * 60UL * 1000UL; // 6 ore
-const unsigned long sleepTime = 45UL * 60UL * 1000UL;              // 6 ore
-unsigned long lastOkMsgTime = 0;                                   // Ultimo OK inviato
-const char CHIAVE_CIFRATURA = 0x5A;                                // Chiave di cifratura
 
 // Variabili posizione iniziale
 static float posX = 0.0;
 static float posY = 0.0;
 static float direzione = 0.0; // Direzione in radianti
 
-// Definizione stati barca
-enum StatoBarca
-{
-    STATO_ORMEGGIATA,
-    STATO_RUBATA
-};
-
 StatoBarca stato_attuale = STATO_ORMEGGIATA; // stato iniziale
-
-// Letture Sensori Simulate & Predizione
-void leggi_accelerometro(float &x, float &y, float &z, bool in_movimento);
-void leggi_giroscopio(float &x, float &y, float &z, bool in_movimento);
-float leggi_solcometro(bool in_movimento);
-
-bool barcaOrmeggiata();
-void aggiornaPosizioneBarca(float deltaTimeSec);
-
-// Lora
-String criptaMessaggio(const char *messaggio);
-void inviaMessaggioLoRa(const char *msg);
 
 void setCostants()
 {
