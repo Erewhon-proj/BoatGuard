@@ -31,6 +31,9 @@ static float direzione = 0.0; // Direzione in radianti
 
 StatoBarca stato_attuale = STATO_ORMEGGIATA; // stato iniziale
 
+bool triggerInviato = false; // Flag per invio trigger
+
+
 void setCostants()
 {
     IoTBoard::init_serial();
@@ -263,11 +266,16 @@ void loop()
     {
         // Stato di allarme con aggiornamento posizione
 
+        if (!triggerInviato) {
+            Serial.println("TRIGGER_START");  // Notifica a Python
+            triggerInviato = true;
+        }
+    
+
         // Aggiornamento posizione ogni 5s
         aggiornaPosizioneBarca(5.0);
         delay(5000);
 
-        // Meccanisco di uscita tramite reset manuale
     }
     break;
     }
