@@ -146,7 +146,7 @@ void aggiornaPosizioneBarca(float deltaTimeSec)
 
     // Invia posizione stimata via LoRa
     char buffer[60];
-    snprintf(buffer, sizeof(buffer), "POS X=%.2f Y=%.2f", posX, posY);
+    snprintf(buffer, sizeof(buffer), "POS X=%.2f Y=%.2f DIR=%.2f", posX, posY, direzione);
     inviaMessaggioLoRa(buffer);
 
     // Messaggi di debug su Serial
