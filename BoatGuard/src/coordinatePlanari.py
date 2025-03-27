@@ -1,6 +1,6 @@
 # Possibile script python sempre in ascolto
 # attende che la seriale invii il trigger "TRIGGER_START"
-# per iniziare a salvare i dati e plottarli in tempo reale
+# per iniziare a salvare i dati e plottarli in tempo realegit 
 
 import serial
 import matplotlib.pyplot as plt
