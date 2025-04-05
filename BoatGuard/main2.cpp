@@ -1,3 +1,4 @@
+// Versione iniziale del codice: 1.0.0
 #include <iot_board.h>
 #include "EloquentTinyML.h"
 #include "ormeggio_etichettati.h"

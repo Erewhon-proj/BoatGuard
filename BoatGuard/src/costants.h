@@ -11,11 +11,4 @@ const char *CONFIRM_CONNECTION_MESSAGE = "CONFIRM_CONNECTION";
 const unsigned long INTERVALLO_OK_MS = 6UL * 60UL * 60UL * 1000UL; // 6 ore
 const unsigned long sleepTime = 45UL * 60UL * 1000UL;              // 6 ore
 unsigned long lastOkMsgTime = 0;                                   // Ultimo OK inviato
-const char CHIAVE_CIFRATURA = 0x5A;                                // Chiave di cifratura
-
-// Definizione stati barca
-enum StatoBarca
-{
-    STATO_ORMEGGIATA,
-    STATO_RUBATA
-};
+const unsigned long DURATA_CICLO_MS = 45UL * 60UL * 1000UL; // 45 minuti

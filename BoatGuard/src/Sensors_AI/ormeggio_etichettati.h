@@ -1,4 +1,4 @@
-
+// Pesi per inferenza del modello allenato con lo script Python presente nella repo
 #ifdef __has_attribute
 #define HAVE_ATTRIBUTE(x) __has_attribute(x)
 #else

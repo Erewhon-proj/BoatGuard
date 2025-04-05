@@ -1,4 +1,4 @@
-#include "sensori.h"
+#include "Sensors_AI/sensori.h"
 #include <iot_board.h>
 
 void leggi_accelerometro(float &x, float &y, float &z, bool in_movimento)
