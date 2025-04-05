@@ -20,10 +20,7 @@ BLEServer *pServer = NULL;
 BLECharacteristic *pCharacteristic = NULL;
 
 LoRaMesh_payload_t payload;
-
 String s = "";
-int counterBatteria = 0;
-int livelloBatteria;
 
 const char targa[] = {'A', 'B', '1', '2', '3', 'X', 'Y'};
 const char targaGabbiotto[] = {'A', 'B', '1', '2', '3', 'X', 'Y'};
@@ -48,9 +45,9 @@ void onReceive(LoRaMesh_message_t message);
 void setCostants();
 BLEClient *createBLEClient();
 
-// Rilevazioni barca
-bool barcaOrmeggiata();
+
 void aggiornaPosizioneBarca(float deltaTimeSec);
+bool barcaOrmeggiata();
 void startAdvertising();
 bool inviaMessaggioLoRa(const char targa_destinatario[7], LoRaMesh_payload_t payload);
 
@@ -91,9 +88,6 @@ void setup()
         ESP.restart();
     }
 
-    livelloBatteria = random(50, 100);
-    display->println("Livello batteria corrente: " + String(livelloBatteria) + "%");
-    display->display();
 
     lastOkMsgTime = millis();
     payload.stato = ORMEGGIATA;
@@ -162,6 +156,7 @@ void loop()
         aggiornaPosizioneBarca(5.0);
         delay(5000);
     }
+    break;
     case IN_MOVIMENTO:
     {
         printf("La Barca è in uso da parte del proprietario\n");
@@ -297,7 +292,7 @@ bool barcaOrmeggiata()
     }
 }
 
-void aggiornaPosizioneBarca(float deltaTimeSec, LoRaMesh_payload_t payload)
+void aggiornaPosizioneBarca(float deltaTimeSec)
 {
     // Lettura giroscopio
     float gx, gy, gz;
