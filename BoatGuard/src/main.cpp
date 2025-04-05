@@ -2,13 +2,13 @@
 #include "EloquentTinyML.h"
 #include "Sensors_AI/ormeggio_etichettati.h"
 #include <BLEDevice.h>
-#include <BLEUtils.h>
+#include <BLE/BLEUtils.h>
 #include <BLEServer.h>
 #include <BLEAdvertisedDevice.h>
 #include <BLEScan.h>
 #include <ArduinoJson.h>
 #include <Preferences.h>
-#include "BLEUtils.h"
+#include "BLE/BLEUtils.h"
 #include "Sensors_AI/sensori.h"
 #include "costants.h"
 #include <cstdint>
@@ -97,7 +97,6 @@ void setup()
 
     lastOkMsgTime = millis();
     payload.stato = ORMEGGIATA;
-    payload.livello_batteria = livelloBatteria;
 }
 
 void loop()
