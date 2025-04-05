@@ -150,7 +150,14 @@ void loop()
 
     case RUBATA:
     {
-        // Stato di allarme con aggiornamento posizione
+        // Controllo se è il proprietario e portarsi la nave
+        isNearMe = false;
+
+        if (getNearMe()) {
+            Serial.println("Proprietario rilevato vicino -> Cambio stato in IN_MOVIMENTO");
+            stato_attuale = IN_MOVIMENTO;
+            break; // 
+        }
 
         aggiornaPosizioneBarca(5.0);
         delay(5000);
