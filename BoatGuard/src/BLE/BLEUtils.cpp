@@ -223,7 +223,7 @@ void MyCharacteristicCallbacks::handleSendInfo(JsonDocument &doc)
     {
         Serial.print("Dati: ");
         serializeJson(data, Serial);
-
+        isConfigurated = false;
         if (!isConfigurated)
         {
             preferences.begin("config", false);
@@ -232,6 +232,7 @@ void MyCharacteristicCallbacks::handleSendInfo(JsonDocument &doc)
             preferences.putString("lat", data["lat"].as<const char *>());
             preferences.putString("long", data["long"].as<const char *>());
             preferences.putString("serviceID", data["serviceID"].as<const char *>());
+            preferences.putString("key", data["key"].as<const char *>());
             preferences.end();
 
             Serial.println("Informazioni salvate in NVS");
