@@ -184,6 +184,7 @@ bool inviaMessaggioLoRa(const char targa_destinatario[7], LoRaMesh_payload_t pay
 {
     // Invio messaggio di allerta`
     int ret = LoRaMesh::sendMessage(targaGabbiotto, payload);
+    LoRaMesh::update();
     if (ret == LORA_MESH_MESSAGE_QUEUE_FULL)
     {
         Serial.println("Errore - La coda è piena");
@@ -204,6 +205,7 @@ void setCostants()
     BLEDevice::init("Esp32");
 
     preferences.begin("config", false);
+    preferences.putString("key", "NUOVA-CHIAVE-XYZ");
     if (!preferences.isKey("macBle"))
     {
         String mac = BLEDevice::getAddress().toString();
@@ -253,7 +255,7 @@ bool barcaOrmeggiata()
     {
         float input[NUMBER_OF_INPUTS];
 
-        const int PROB_MOVIMENTO_PERCENT = 70; // 70% di essere in movimento
+        const int PROB_MOVIMENTO_PERCENT = 90; // 70% di essere in movimento
         bool in_movimento = (random(0, 100) < PROB_MOVIMENTO_PERCENT);
 
         // Lettura sensori simulati
