@@ -1,6 +1,7 @@
 #include "CircularQueue/CircularQueue.h"
 #include <cstdint>
 
+
 template <class T>
 CircularQueue<T>::CircularQueue(): head(0), tail(0) {
     for(int i = 0; i < size; i++) {

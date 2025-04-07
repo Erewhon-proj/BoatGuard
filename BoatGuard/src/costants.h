@@ -8,7 +8,9 @@
 const char *REQUEST_CONNECTION_MESSAGE = "REQUEST_CONNECTION";
 const char *CONFIRM_CONNECTION_MESSAGE = "CONFIRM_CONNECTION";
 
-const unsigned long INTERVALLO_OK_MS = 6UL * 60UL * 60UL * 1000UL; // 6 ore
+//const unsigned long INTERVALLO_OK_MS = 6UL * 60UL * 60UL * 1000UL; // 6 ore
+const unsigned long INTERVALLO_OK_MS = 10UL * 1000UL; // 10 secondi
 const unsigned long sleepTime = 45UL * 60UL * 1000UL;              // 6 ore
 unsigned long lastOkMsgTime = 0;                                   // Ultimo OK inviato
-const unsigned long DURATA_CICLO_MS = 45UL * 60UL * 1000UL; // 45 minuti
+//const unsigned long DURATA_CICLO_MS = 45UL * 60UL * 1000UL; // 45 minuti
+const unsigned long DURATA_CICLO_MS = 5UL * 1000UL; // 5 secondi

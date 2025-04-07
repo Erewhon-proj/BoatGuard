@@ -16,14 +16,16 @@
 #include "LoRaMesh/state_t.h"
 #include "LoRaMesh/LoRaMesh.h"
 
+
 BLEServer *pServer = NULL;
 BLECharacteristic *pCharacteristic = NULL;
 
 LoRaMesh_payload_t payload;
 String s = "";
 
-const char targa[] = {'A', 'B', '1', '2', '3', 'X', 'Y'};
+
 const char targaGabbiotto[] = {'A', 'B', '1', '2', '3', 'X', 'Y'};
+const char targa[] = {'E', 'M', '2', '0', '2', '3', '0'};
 
 extern bool isConfigurated;
 extern bool isNearMe;
@@ -59,17 +61,17 @@ void setup()
     Serial.begin(115200);
     setCostants();
 
-    BLEClient *pClient = createBLEClient();
+    // BLEClient *pClient = createBLEClient();
 
-    if (isConfigurated)
-    {
-        Serial.println("Informazioni già configurate");
-    }
+    // if (isConfigurated)
+    // {
+    //     Serial.println("Informazioni già configurate");
+    // }
 
-    if (!isConnected)
-    {
-        startAdvertising();
-    }
+    // if (!isConnected)
+    // {
+    //     startAdvertising();
+    // }
 
     // Caricamento modello
     if (!ml.begin(ormeggio_model))
@@ -147,11 +149,11 @@ void loop()
         // Controllo se è il proprietario e portarsi la nave
         isNearMe = false;
 
-        if (getNearMe()) {
-            Serial.println("Proprietario rilevato vicino -> Cambio stato in IN_MOVIMENTO");
-            stato_attuale = IN_MOVIMENTO;
-            break; // 
-        }
+        // if (getNearMe()) {
+        //     Serial.println("Proprietario rilevato vicino -> Cambio stato in IN_MOVIMENTO");
+        //     stato_attuale = IN_MOVIMENTO;
+        //     break; // 
+        // }
 
         aggiornaPosizioneBarca(5.0);
         delay(5000);
