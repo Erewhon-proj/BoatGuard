@@ -76,8 +76,11 @@ void setup()
     targa[sizeof(targa)] = '\0';
     Serial.println("Targa configurata");
     Serial.println(targa);
+
     // startAdvertising();
     // delay(20000); // DA RIMUOVERE
+
+    targa[0] = '\0';
 
     if (targa[0] == '\0')
     {
@@ -158,6 +161,8 @@ void handleSwitchState()
         LoRaMesh::update();
         // Controllo se è il proprietario e portarsi la nave
         createBLEClient();
+
+        delay(5000);
 
         if (getNearMe())
         {
@@ -301,6 +306,13 @@ bool barcaOrmeggiata()
         {
             count_non_ormeggiata++;
         }
+
+        Serial.print("  Rilevazione ");
+        Serial.print(i + 1);
+        Serial.print(" -> output=");
+        Serial.print(output[0]);
+        Serial.print(" => ");
+        Serial.println(is_ormeggiata ? "BarcaOrmeggiata" : "BarcaNonOrmeggiata");
 
         delay(1000);
     }
