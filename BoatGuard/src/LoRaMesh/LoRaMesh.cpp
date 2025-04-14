@@ -19,7 +19,7 @@ const uint8_t commonKey[KEY_LEN] = {
 //     0x12, 0x34, 0x56, 0x78,
 //     0x9A, 0xBC, 0xDE, 0xF0};
 
-const uint8_t privateKey[KEY_LEN+1] = "NUOVA-CHIAVE-XYZ";
+const uint8_t privateKey[KEY_LEN + 1] = "O1irNo46mbGIt20S";
 
 LoRaMesh_message_t LoRaMesh::messageToSend = {0};
 LoRaMesh_message_t LoRaMesh::messageToRedirect = {0};
@@ -66,11 +66,16 @@ void LoRaMesh::update()
 
 void LoRaMesh::onReceive(int packetSize)
 {
+
+    Serial.println("LoraMasch/onReceive");
+
     // Il pacchetto è vuoto
     if (packetSize == 0 || packetSize != sizeof(LoRaMesh_message_t))
     {
         return;
     }
+
+    Serial.println("LoraMasch/onReceive/76");
 
     // Leggiamo il pacchetto cifrato
     LoRaMesh_message_t encryptedMessage;
@@ -81,21 +86,30 @@ void LoRaMesh::onReceive(int packetSize)
         return;
     queue.push(encryptedMessage.message_id);
 
+    Serial.println("LoraMasch/onReceive/88");
+
     // Creiamo una copia per decriptarlo
     LoRaMesh_message_t decryptedMessage = encryptedMessage;
 
     // Decriptiamo con la chiave comune
-    xorBuffer(&decryptedMessage, sizeof(LoRaMesh_message_t), commonKey, sizeof(commonKey));
+    xorBuffer(&decryptedMessage, sizeof(LoRaMesh_message_t), commonKey, KEY_LEN, false);
 
-        // Il messaggio non è per noi, lo reinviamo
+    Serial.println("LoraMasch/onReceive/95");
+
+    // Il messaggio non è per noi, lo reinviamo
     if (memcmp(decryptedMessage.targa_destinatario, LoRaMesh::targa, 7) != 0)
     {
         messageToRedirect = encryptedMessage; // messaggio originale criptato
         return;
     }
 
-    // Sennò decriptiamo il payload
-    xorBuffer(&decryptedMessage.payload, sizeof(LoRaMesh_payload_t), privateKey, sizeof(privateKey));
+    Serial.println("LoraMasch/onReceive/105");
+    Serial.print("Private Key (string): ");
+    Serial.println((const char *)privateKey);
+
+    xorBuffer(&decryptedMessage.payload, sizeof(LoRaMesh_payload_t), (uint8_t *)privateKey, KEY_LEN, true);
+
+    Serial.println("LoraMasch/onReceive/110");
 
     userOnReceiveCallBack(decryptedMessage);
 }
@@ -114,12 +128,12 @@ int LoRaMesh::sendMessage(const char targa_destinatario[7], LoRaMesh_payload_t p
 
     preferences.begin("config", false);
 
-    String key = preferences.getString("key");
+    // String key = preferences.getString("key"); <------ TODO
 
-    xorBuffer(&payload, sizeof(LoRaMesh_payload_t), (uint8_t*) key.c_str(), KEY_LEN);
+    xorBuffer(&payload, sizeof(LoRaMesh_payload_t), (uint8_t *)privateKey, KEY_LEN);
 
     preferences.end();
-    
+
     messageToSend = {
         .message_id = (uint16_t)random(1, 65535),
         .payload = payload,

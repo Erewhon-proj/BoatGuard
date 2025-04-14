@@ -16,16 +16,14 @@
 #include "LoRaMesh/state_t.h"
 #include "LoRaMesh/LoRaMesh.h"
 
-
 BLEServer *pServer = NULL;
 BLECharacteristic *pCharacteristic = NULL;
 
 LoRaMesh_payload_t payload;
 String s = "";
 
-
 const char targaGabbiotto[] = {'A', 'B', '1', '2', '3', 'X', 'Y'};
-const char targa[] = {'E', 'M', '2', '0', '2', '3', '0'};
+char targa[7];
 
 extern bool isConfigurated;
 extern bool isNearMe;
@@ -46,7 +44,6 @@ void onReceive(LoRaMesh_message_t message);
 
 void setCostants();
 BLEClient *createBLEClient();
-
 
 void aggiornaPosizioneBarca(float deltaTimeSec);
 bool barcaOrmeggiata();
@@ -73,49 +70,63 @@ void setup()
     //     startAdvertising();
     // }
 
+    preferences.begin("config", false);
+    Serial.println(preferences.getString("targa").c_str());
+    strncpy(targa, preferences.getString("targa").c_str(), sizeof(targa));
+    targa[sizeof(targa)] = '\0';
+    Serial.println("Targa configurata");
+    Serial.println(targa);
+    // startAdvertising();
+    // delay(20000); // DA RIMUOVERE
+
+    if (targa[0] == '\0')
+    {
+        Serial.println("Targa non configurata");
+        display->println("Targa non configurata");
+        display->display();
+        startAdvertising();
+        delay(2000);
+        // ESP.restart();
+    }
+
+    display->print("targa: ");
+    display->println(targa);
+
     // Caricamento modello
     if (!ml.begin(ormeggio_model))
     {
         Serial.println("Errore nell'inizializzazione del modello");
     }
-    else
-    {
-        Serial.println("Modello caricato");
-    }
 
     // Inizializzazione LoRa
     if (!LoRaMesh::init(targa, onReceive))
     {
-        Serial.println("Errore nell'avvio di LoRa");
-        ESP.restart();
+        Serial.println("Errore nell'avvio di LoRa... Riavvio...");
+        delay(5000);
+        // ESP.restart();
     }
 
-
     lastOkMsgTime = millis();
-    payload.stato = ORMEGGIATA;
 }
 
-void loop()
+void handleSwitchState()
 {
     switch (stato_attuale)
     {
-
     case ORMEGGIATA:
     {
         // Verifico se la barca risulta ormeggiata o meno
         bool ormeggiata = barcaOrmeggiata();
         if (!ormeggiata)
         {
-            Serial.println("La Barca risulta NON è ormeggiata");
-
             stato_attuale = RUBATA;
-
             // Aggiorno la posizione
             aggiornaPosizioneBarca(5.0);
+            Serial.println("La Barca non è più ormeggiata");
         }
         else
         {
-            Serial.println("La Barca risulta ormeggiata");
+            Serial.println("La Barca risulta ancora ormeggiata");
 
             // Invia posizione stimata via LoRa
             payload.stato = ORMEGGIATA;
@@ -124,7 +135,6 @@ void loop()
             payload.direzione = 0;
 
             unsigned long now = millis();
-
             // Invio "OK" se è passato INTERVALLO_OK_MS
 
             if (now - lastOkMsgTime > INTERVALLO_OK_MS)
@@ -143,17 +153,18 @@ void loop()
         }
     }
     break;
-
     case RUBATA:
     {
+        LoRaMesh::update();
         // Controllo se è il proprietario e portarsi la nave
-        isNearMe = false;
+        createBLEClient();
 
-        // if (getNearMe()) {
-        //     Serial.println("Proprietario rilevato vicino -> Cambio stato in IN_MOVIMENTO");
-        //     stato_attuale = IN_MOVIMENTO;
-        //     break; // 
-        // }
+        if (getNearMe())
+        {
+            Serial.println("Proprietario rilevato vicino -> Cambio stato in IN_MOVIMENTO");
+            stato_attuale = IN_MOVIMENTO;
+            break;
+        }
 
         aggiornaPosizioneBarca(5.0);
         delay(5000);
@@ -161,23 +172,54 @@ void loop()
     break;
     case IN_MOVIMENTO:
     {
-        printf("La Barca è in uso da parte del proprietario\n");
+        /*bool ormeggiata = barcaOrmeggiata();
+        if (ormeggiata)
+        {
+            stato_attuale = ORMEGGIATA;
+            Serial.println("La Barca non è più IN MOVIMENTO");
+        }
+        else
+        {
+            Serial.println("La Barca è in uso da parte del proprietario\n");
+        }*/
+
+        Serial.println("La Barca è in uso da parte del proprietario\n");
     }
     break;
     }
 }
 
+void loop()
+{
+    LoRaMesh::update();
+    Serial.print("Stato attuale: ");
+    Serial.print(statoToString(stato_attuale));
+    handleSwitchState();
+}
+
 void onReceive(LoRaMesh_message_t message)
 {
-    display->clearDisplay();
-    display->setCursor(0, 0);
-    display->printf("Targa mittente: ");
-    for (int i = 0; i < TARGA_LEN; i++)
+    Serial.println("main/onRecive");
+
+    Serial.println(message.message_id);
+    Serial.println(message.payload.direzione);
+    Serial.println(message.payload.posX);
+    Serial.println(message.payload.posY);
+    Serial.println(message.payload.stato);
+    Serial.println(message.payload.stato);
+    Serial.println(message.payload.message_sequence);
+
+    stato_attuale = message.payload.stato;
+    Serial.print("Cambio stato in: ");
+    Serial.print(statoToString(stato_attuale));
+
+    /*
+    if (message.payload.message_sequence == 0 && message.payload.posX == 0 && message.payload.direzione == 0)
     {
-        display->printf("%c", message.targa_mittente[i]);
-    }
-    display->printf("\n");
-    display->printf("Id Messaggio: %d\n", (message.message_id));
+        Serial.println("stato");
+        Serial.println(message.payload.stato);
+
+        */
 }
 
 bool inviaMessaggioLoRa(const char targa_destinatario[7], LoRaMesh_payload_t payload)
@@ -204,30 +246,19 @@ void setCostants()
     IoTBoard::init_display();
     BLEDevice::init("Esp32");
 
-    preferences.begin("config", false);
-    preferences.putString("key", "NUOVA-CHIAVE-XYZ");
-    if (!preferences.isKey("macBle"))
-    {
-        String mac = BLEDevice::getAddress().toString();
-        preferences.putString("macBle", mac);
-        Serial.print("Salvato MAC BLE: ");
-        Serial.println(mac);
-    }
-    preferences.end();
-
     // set isConfigurated
     preferences.begin("config", true);
     isConfigurated = preferences.isKey("targa");
     preferences.end();
 
     // set isNearMe
-    isNearMe = getNearMe();
+    isNearMe = false;
 }
 
 BLEClient *createBLEClient()
 {
-    Serial.println("Scansione in corso...");
-    display->println("Scansione in corso...");
+    Serial.println("Ckech NearMe");
+    display->println("Ckech NearMe");
     display->display();
 
     BLEClient *pClient = BLEDevice::createClient();
@@ -249,13 +280,11 @@ bool barcaOrmeggiata()
     const int NUM_RILEVAZIONI = 10;
     int count_non_ormeggiata = 0;
 
-    Serial.println("Eseguo 10 rilevazioni per inferenza...");
-
     for (int i = 0; i < NUM_RILEVAZIONI; i++)
     {
         float input[NUMBER_OF_INPUTS];
 
-        const int PROB_MOVIMENTO_PERCENT = 90; // 70% di essere in movimento
+        const int PROB_MOVIMENTO_PERCENT = 50; // 70% di essere in movimento
         bool in_movimento = (random(0, 100) < PROB_MOVIMENTO_PERCENT);
 
         // Lettura sensori simulati
@@ -273,18 +302,8 @@ bool barcaOrmeggiata()
             count_non_ormeggiata++;
         }
 
-        Serial.print("  Rilevazione ");
-        Serial.print(i + 1);
-        Serial.print(" -> output=");
-        Serial.print(output[0]);
-        Serial.print(" => ");
-        Serial.println(is_ormeggiata ? "BarcaOrmeggiata" : "BarcaNonOrmeggiata");
-
         delay(1000);
     }
-
-    Serial.print("Conteggio 'Barca NON Ormeggiata': ");
-    Serial.println(count_non_ormeggiata);
 
     if (count_non_ormeggiata > (NUM_RILEVAZIONI / 2))
     {
@@ -298,6 +317,7 @@ bool barcaOrmeggiata()
 
 void aggiornaPosizioneBarca(float deltaTimeSec)
 {
+    Serial.println("Aggiorna posizione barca");
     // Lettura giroscopio
     float gx, gy, gz;
     leggi_giroscopio(gx, gy, gz, true);
@@ -318,14 +338,6 @@ void aggiornaPosizioneBarca(float deltaTimeSec)
     payload.direzione = direzione;
 
     inviaMessaggioLoRa(targaGabbiotto, payload);
-
-    // Messaggi di debug su Serial
-    Serial.print("Nuova direzione (rad) = ");
-    Serial.println(direzione);
-    Serial.print("Posizione X = ");
-    Serial.print(posX);
-    Serial.print(", Y = ");
-    Serial.println(posY);
 }
 
 void startAdvertising()
