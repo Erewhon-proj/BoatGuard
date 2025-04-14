@@ -19,7 +19,7 @@ const uint8_t commonKey[KEY_LEN] = {
 //     0x12, 0x34, 0x56, 0x78,
 //     0x9A, 0xBC, 0xDE, 0xF0};
 
-const uint8_t privateKey[KEY_LEN + 1] = "O1irNo46mbGIt20S";
+uint8_t privateKey[KEY_LEN + 1];
 
 LoRaMesh_message_t LoRaMesh::messageToSend = {0};
 LoRaMesh_message_t LoRaMesh::messageToRedirect = {0};
@@ -33,6 +33,16 @@ bool LoRaMesh::init(const char targa[7], void (*userOnReceiveCallBack)(LoRaMesh_
     {
         LoRaMesh::targa[i] = targa[i];
     }
+
+    preferences.begin("config", false);
+    String savedKey = preferences.getString("key");
+    strncpy((char *)privateKey, savedKey.c_str(), KEY_LEN);
+
+    preferences.end();
+
+    Serial.print("Chiave privata caricata: ");
+    Serial.println((char *)privateKey);
+
     LoRaMesh::messageToSend = {0};
     LoRaMesh::messageToRedirect = {0};
     LoRaMesh::userOnReceiveCallBack = userOnReceiveCallBack;
@@ -45,6 +55,7 @@ bool LoRaMesh::init(const char targa[7], void (*userOnReceiveCallBack)(LoRaMesh_
     }
     lora->onReceive(LoRaMesh::onReceive);
     lora->receive();
+
     return 1;
 }
 
