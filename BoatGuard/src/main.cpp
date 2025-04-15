@@ -36,7 +36,7 @@ Eloquent::TinyML::TfLite<NUMBER_OF_INPUTS, NUMBER_OF_OUTPUTS, TENSOR_ARENA_SIZE>
 // Variabili posizione iniziale
 static float posX = 0.0;
 static float posY = 0.0;
-static float direzione = 0.0; // Direzione in radianti
+static float direzione = 0.0; 
 
 StatoBarca stato_attuale = ORMEGGIATA; // Stato iniziale della barca
 
@@ -58,18 +58,6 @@ void setup()
     Serial.begin(115200);
     setCostants();
 
-    // BLEClient *pClient = createBLEClient();
-
-    // if (isConfigurated)
-    // {
-    //     Serial.println("Informazioni già configurate");
-    // }
-
-    // if (!isConnected)
-    // {
-    //     startAdvertising();
-    // }
-
     preferences.begin("config", false);
     Serial.println(preferences.getString("targa").c_str());
     strncpy(targa, preferences.getString("targa").c_str(), sizeof(targa));
@@ -77,10 +65,8 @@ void setup()
     Serial.println("Targa configurata");
     Serial.println(targa);
 
-    // startAdvertising();
-    // delay(20000); // DA RIMUOVERE
-
-    targa[0] = '\0';
+    //startAdvertising();
+    //targa[0] = '\0';
 
     if (targa[0] == '\0')
     {
@@ -89,7 +75,6 @@ void setup()
         display->display();
         startAdvertising();
         delay(2000);
-        // ESP.restart();
     }
 
     display->print("targa: ");
@@ -106,7 +91,6 @@ void setup()
     {
         Serial.println("Errore nell'avvio di LoRa... Riavvio...");
         delay(5000);
-        // ESP.restart();
     }
 
     lastOkMsgTime = millis();
@@ -138,6 +122,7 @@ void handleSwitchState()
             payload.direzione = 0;
 
             unsigned long now = millis();
+
             // Invio "OK" se è passato INTERVALLO_OK_MS
 
             if (now - lastOkMsgTime > INTERVALLO_OK_MS)
@@ -149,7 +134,7 @@ void handleSwitchState()
 
             while (millis() - now < DURATA_CICLO_MS)
             {
-                Serial.print("In attesa durante ORMEGGIO");
+                Serial.println("In attesa durante ORMEGGIO");
                 LoRaMesh::update();
                 delay(5000);
             }
@@ -159,7 +144,10 @@ void handleSwitchState()
     case RUBATA:
     {
         LoRaMesh::update();
+       
         // Controllo se è il proprietario e portarsi la nave
+        // Tramite il telefono del proprietario
+       
         createBLEClient();
 
         delay(5000);
@@ -177,18 +165,8 @@ void handleSwitchState()
     break;
     case IN_MOVIMENTO:
     {
-        /*bool ormeggiata = barcaOrmeggiata();
-        if (ormeggiata)
-        {
-            stato_attuale = ORMEGGIATA;
-            Serial.println("La Barca non è più IN MOVIMENTO");
-        }
-        else
-        {
-            Serial.println("La Barca è in uso da parte del proprietario\n");
-        }*/
-
         Serial.println("La Barca è in uso da parte del proprietario\n");
+        delay(10000);
     }
     break;
     }
@@ -223,13 +201,13 @@ void onReceive(LoRaMesh_message_t message)
     {
         Serial.println("stato");
         Serial.println(message.payload.stato);
-
+    }
         */
 }
 
 bool inviaMessaggioLoRa(const char targa_destinatario[7], LoRaMesh_payload_t payload)
 {
-    // Invio messaggio di allerta`
+    // Invio messaggio di allerta
     int ret = LoRaMesh::sendMessage(targaGabbiotto, payload);
     LoRaMesh::update();
     if (ret == LORA_MESH_MESSAGE_QUEUE_FULL)
@@ -251,12 +229,12 @@ void setCostants()
     IoTBoard::init_display();
     BLEDevice::init("Esp32");
 
-    // set isConfigurated
+    // isConfigurated
     preferences.begin("config", true);
     isConfigurated = preferences.isKey("targa");
     preferences.end();
 
-    // set isNearMe
+    // isNearMe
     isNearMe = false;
 }
 
@@ -275,7 +253,6 @@ BLEClient *createBLEClient()
     bleScan->setInterval(100);
     bleScan->setWindow(90);
     bleScan->start(5, false); // Scansione per 5 secondi
-    // BLEDevice::deinit(false);
     return pClient;
 }
 
@@ -289,7 +266,7 @@ bool barcaOrmeggiata()
     {
         float input[NUMBER_OF_INPUTS];
 
-        const int PROB_MOVIMENTO_PERCENT = 50; // 70% di essere in movimento
+        const int PROB_MOVIMENTO_PERCENT = 70; // 70% di essere in movimento
         bool in_movimento = (random(0, 100) < PROB_MOVIMENTO_PERCENT);
 
         // Lettura sensori simulati

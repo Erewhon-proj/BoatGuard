@@ -17,7 +17,6 @@ typedef struct
 {
     uint16_t message_sequence;
     StatoBarca stato;
-    /*uint8_t livello_batteria;*/
     float posX;
     float posY;
     float direzione;

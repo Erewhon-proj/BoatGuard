@@ -6,4 +6,4 @@
 
 void xorBuffer(void *data, size_t len, const uint8_t *key, size_t key_len, bool recive = false);
 
-#endif // CRYPTO_UTILS_H
+#endif 

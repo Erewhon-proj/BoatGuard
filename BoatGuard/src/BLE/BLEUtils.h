@@ -42,7 +42,6 @@ class MyCharacteristicCallbacks : public BLECharacteristicCallbacks
     void handleRequestConnection(BLECharacteristic *pCharacteristic);
     void handleGetInfo(BLECharacteristic *pCharacteristic);
     void handleSendInfo(JsonDocument &doc);
-    // Aggiungi la dichiarazione per setPosition
     void handleSetPosition(JsonDocument &doc);
 };
 

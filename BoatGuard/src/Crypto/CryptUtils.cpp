@@ -21,5 +21,5 @@ void xorBuffer(void *data, size_t len, const uint8_t *key, size_t key_len, bool 
         Serial.println((const char *)key);
     }
 
-    Serial.println("XORed DONE");
+    Serial.println("XORed Effettuato");
 }

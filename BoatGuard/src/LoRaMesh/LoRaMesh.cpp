@@ -78,15 +78,11 @@ void LoRaMesh::update()
 void LoRaMesh::onReceive(int packetSize)
 {
 
-    Serial.println("LoraMasch/onReceive");
-
     // Il pacchetto è vuoto
     if (packetSize == 0 || packetSize != sizeof(LoRaMesh_message_t))
     {
         return;
     }
-
-    Serial.println("LoraMasch/onReceive/76");
 
     // Leggiamo il pacchetto cifrato
     LoRaMesh_message_t encryptedMessage;
@@ -97,7 +93,6 @@ void LoRaMesh::onReceive(int packetSize)
         return;
     queue.push(encryptedMessage.message_id);
 
-    Serial.println("LoraMasch/onReceive/88");
 
     // Creiamo una copia per decriptarlo
     LoRaMesh_message_t decryptedMessage = encryptedMessage;
@@ -105,7 +100,6 @@ void LoRaMesh::onReceive(int packetSize)
     // Decriptiamo con la chiave comune
     xorBuffer(&decryptedMessage, sizeof(LoRaMesh_message_t), commonKey, KEY_LEN, false);
 
-    Serial.println("LoraMasch/onReceive/95");
 
     // Il messaggio non è per noi, lo reinviamo
     if (memcmp(decryptedMessage.targa_destinatario, LoRaMesh::targa, 7) != 0)
@@ -114,13 +108,10 @@ void LoRaMesh::onReceive(int packetSize)
         return;
     }
 
-    Serial.println("LoraMasch/onReceive/105");
-    Serial.print("Private Key (string): ");
+    // Serial.print("Private Key (string): ");
     Serial.println((const char *)privateKey);
 
     xorBuffer(&decryptedMessage.payload, sizeof(LoRaMesh_payload_t), (uint8_t *)privateKey, KEY_LEN, true);
-
-    Serial.println("LoraMasch/onReceive/110");
 
     userOnReceiveCallBack(decryptedMessage);
 }
@@ -138,8 +129,6 @@ int LoRaMesh::sendMessage(const char targa_destinatario[7], LoRaMesh_payload_t p
     payload.message_sequence = LoRaMesh::message_sequence++;
 
     preferences.begin("config", false);
-
-    // String key = preferences.getString("key"); <------ TODO
 
     xorBuffer(&payload, sizeof(LoRaMesh_payload_t), (uint8_t *)privateKey, KEY_LEN);
 
